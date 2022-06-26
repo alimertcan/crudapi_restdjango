@@ -41,6 +41,7 @@ def add_passenger(request):
 
     if item.is_valid():
         item.save()
+        send_email_task.delay("data added to passenger table")
         return Response(item.data, headers={'MiddleWareHeader': request.headers['Custom-Header']})
     else:
         return Response(status=status.HTTP_404_NOT_FOUND)
@@ -75,6 +76,7 @@ def update_passenger(request, pk):
     data = PassengerSerializer(instance=item, data=updated_data)
     if data.is_valid():
         data.save()
+        send_email_task.delay("data updated to passenger table")
         return Response(data.data, headers={'MiddleWareHeader': request.headers['Custom-Header']})
     else:
         return Response(status=status.HTTP_404_NOT_FOUND)
