@@ -10,6 +10,9 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.forms.models import model_to_dict
+from .tasks import send_email_task
+
+
 
 
 @api_view(['GET'])
@@ -23,7 +26,7 @@ def ApiOverview(request):
         'Delete Passenger': '/passenger/pk/delete',
         'MiddleWareHeader': request.headers['Custom-Header']
     }
-
+    send_email_task.delay("api page visited")
     return Response(api_urls)
 
 
