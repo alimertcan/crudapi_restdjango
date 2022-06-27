@@ -16,7 +16,7 @@ schema_view = get_schema_view(
 
 )
 urlpatterns = [
-    path('swagger',schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+
     path('', ApiOverview, name='home'),
     path('add_passenger/', add_passenger, name='add_passenger'),
     path('trip_view/', trip_view_get_post, name='trip_view'),
@@ -24,5 +24,6 @@ urlpatterns = [
     path('all_passengers/', view_passengers, name='view_passengers'),
     path('update_passenger/<int:pk>/', update_passenger, name='update_passenger'),
     path('passenger/<int:pk>/delete/', delete_passenger, name='delete_passenger'),
-    path('', include('rest_framework.urls', namespace='rest_framework'))
+    path('', include('rest_framework.urls', namespace='rest_framework')),
+    path('swagger',schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 ]

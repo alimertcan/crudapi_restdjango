@@ -114,18 +114,20 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = 'static/'
-
+STATIC_ROOT= os.path.join(BASE_DIR, 'static')
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+CELERY_BROKER_URL = 'redis://redis:6379/0'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = "smtp.fastmail.com"
 EMAIL_PORT = 587
 EMAIL_HOST_USER = os.getenv('email_user')
+print(EMAIL_HOST_USER)
 EMAIL_HOST_PASSWORD = os.getenv('email_pass')
+print(EMAIL_HOST_PASSWORD)
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False

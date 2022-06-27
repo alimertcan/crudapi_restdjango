@@ -3,16 +3,14 @@ from django.shortcuts import render
 # Create your views here.
 from drf_yasg.utils import swagger_auto_schema
 
-from .models import Passenger, Trip
-from rest_framework import status, serializers, viewsets
-from .serializers import PassengerSerializer, TripSerializer
+from .models import Passenger, Trip, TripToPassenger
+from rest_framework import status, serializers
+from .serializers import PassengerSerializer, TripSerializer, TripToPassengerSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.forms.models import model_to_dict
 from .tasks import send_email_task
-
-
 
 
 @api_view(['GET'])
@@ -86,6 +84,7 @@ def update_passenger(request, pk):
 def delete_passenger(request, pk):
     item = get_object_or_404(Passenger, pk=pk)
     item.delete()
+    send_email_task.delay("data deleted to trip passenger")
     return Response(status=status.HTTP_202_ACCEPTED)
 
 
@@ -97,43 +96,33 @@ def trip_view_get_post(request):
             items = Trip.objects.filter(**request.query_params.dict())
         else:
             items = Trip.objects.all()
-        for i in items:
-            print(i.passenger)
-            print(type(i))
 
         # if there is something in items else raise error
         if items:
             serialzer = TripSerializer(items, many=True)
-            print(serialzer.data)
             return Response(serialzer.data, headers={'MiddleWareHeader': request.headers['Custom-Header']})
         else:
             return Response(status=status.HTTP_404_NOT_FOUND)
     elif request.method == 'POST':
+        passenger_data = request.data.pop('passenger')
         new_data = request.data
-        new_data = parse_passenger(new_data)
         item = TripSerializer(data=new_data)
-        print(item, "222222")
-        # validating for already existing data
         if Trip.objects.filter(**new_data).exists():
             raise serializers.ValidationError('This data already exists')
-        print(3)
-        print(item)
         if item.is_valid():
-            print(4)
+
             item.save()
+            trip_id = Trip.objects.latest('id')
+
+            for index in passenger_data:
+                many_to_many_data = {"trip_id": trip_id.id, "passenger_id": index}
+                item2 = TripToPassengerSerializer(data=many_to_many_data)
+                if item2.is_valid():
+                    item2.save()
+            send_email_task.delay("data added to trip table")
             return Response(item.data, headers={'MiddleWareHeader': request.headers['Custom-Header']})
         else:
             return Response(status=status.HTTP_404_NOT_FOUND)
-
-
-def parse_passenger(data):
-    new_list = []
-
-    for index in data['passenger']:
-        new_list.append(get_object_or_404(Passenger, email=index))
-    print(new_list)
-    data['passenger'] = new_list
-    return data
 
 
 @swagger_auto_schema(methods=['patch'], request_body=TripSerializer)
@@ -141,18 +130,33 @@ def parse_passenger(data):
 def trip_view_update_delete(request, pk):
     if request.method == 'PATCH':
         item = Trip.objects.get(pk=pk)
-        print(item)
         item_dict = model_to_dict(item)
-        print(item_dict)
         updated_data = request.data
-        print(updated_data, 3333)
+        passenger_update_data = updated_data.pop('passenger')
         for index in item_dict:
             if index not in updated_data:
                 request.data[index] = item_dict[index]
-        updated_data = parse_passenger(updated_data)
         data = TripSerializer(instance=item, data=updated_data)
         if data.is_valid():
             data.save()
+            passenger_data = TripToPassenger.objects.filter(trip_id=pk)
+            bulk_update_count = len(passenger_data)
+            passenger_update_data_count = len(passenger_update_data)
+            if bulk_update_count == passenger_update_data_count:
+                for index in range(passenger_update_data_count):
+                    update_relation_data = {"trip_id": pk, "passenger_id": passenger_update_data[index]}
+                    item2 = TripToPassengerSerializer(instance=passenger_data[index], data=update_relation_data)
+                    if item2.is_valid():
+                        item2.save()
+            else:
+                for data_id in passenger_data:
+                    get_object_or_404(TripToPassenger, pk=data_id.id).delete()
+                for passenger_id in passenger_update_data:
+                    many_to_many_data = {"trip_id": pk, "passenger_id": passenger_id}
+                    item2 = TripToPassengerSerializer(data=many_to_many_data)
+                    if item2.is_valid():
+                        item2.save()
+            send_email_task.delay("data updated to trip table")
             return Response(data.data, headers={'MiddleWareHeader': request.headers['Custom-Header']})
         else:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -160,4 +164,5 @@ def trip_view_update_delete(request, pk):
     elif request.method == 'DELETE':
         item = get_object_or_404(Trip, pk=pk)
         item.delete()
+        send_email_task.delay("data deleted to trip table")
         return Response(status=status.HTTP_202_ACCEPTED)

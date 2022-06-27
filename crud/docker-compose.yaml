@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - '6379:6379'
+
+  django:
+    container_name: django_server2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crud-api
+    ports:
+      - "8000:8000"
+    links:
+      - redis
+    depends_on:
+      - celery
+
+  celery:
+    build: .
+    command: celery -A api worker -l info
+    env_file: local.env
+    links:
+      - redis

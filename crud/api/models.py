@@ -6,8 +6,7 @@ class Passenger(models.Model):
     status = models.BooleanField()
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
-    # def __str__(self):
-    #     return str(self.pk)
+
 
 
 class Trip(models.Model):
@@ -16,6 +15,10 @@ class Trip(models.Model):
     end_time = models.DateTimeField()
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
-    passenger = models.ManyToManyField(Passenger)
-    def __str__(self):
-        return 'id:{} - TotalDistance:{} '.format(self.pk, self.total_distance)
+    passenger = models.ManyToManyField(Passenger,blank=True,through='TripToPassenger')
+
+
+
+class TripToPassenger(models.Model):
+    passenger_id = models.ForeignKey(Passenger, on_delete=models.CASCADE)
+    trip_id = models.ForeignKey(Trip, on_delete=models.CASCADE)
